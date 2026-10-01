@@ -44,7 +44,6 @@ const state = {
   tab: 'chats',
   unsubMessages: null,
   unsubContacts: null,
-  unsubAllUsers: null,
   unsubChats: null
 };
 
@@ -138,7 +137,6 @@ auth.onAuthStateChanged(async user => {
     refreshProfileUI();
     startRealtime();
     subscribeContacts();
-    subscribeAllUsers();
   } else {
     showRegister();
   }
@@ -207,7 +205,6 @@ $('#regSubmit').addEventListener('click', async () => {
   refreshProfileUI();
   startRealtime();
   subscribeContacts();
-  subscribeAllUsers();
 });
 
 /* ============================================================
@@ -274,7 +271,7 @@ function renderContacts() {
   const container = $('#contactsList');
   if (!container) return;
   if (!state.contacts.length) {
-    container.innerHTML = `<div class="empty-small">Контактов пока нет. Добавьте по коду или выберите из списка ниже.</div>`;
+    container.innerHTML = `<div class="empty-small">Контактов пока нет. Введите код друга выше, чтобы добавить его.</div>`;
     return;
   }
   container.innerHTML = state.contacts.map(c => `
@@ -289,48 +286,6 @@ function renderContacts() {
 
   container.querySelectorAll('.chat-row').forEach(r => {
     r.addEventListener('click', () => startChatWith(r.dataset.uid, r.dataset.name));
-  });
-}
-
-function subscribeAllUsers() {
-  if (!state.uid) return;
-  if (state.unsubAllUsers) state.unsubAllUsers();
-  state.unsubAllUsers = db.collection('users').onSnapshot(snap => {
-    const container = $('#allUsersList');
-    if (!container) return;
-
-    const list = snap.docs
-      .map(d => d.data())
-      .filter(u => u.uid && u.uid !== state.uid);
-
-    if (!list.length) {
-      container.innerHTML = `<div class="empty-small">Пока никто не зарегистрирован, кроме вас.</div>`;
-      return;
-    }
-
-    const contactUids = new Set(state.contacts.map(c => c.uid));
-
-    container.innerHTML = list.map(u => {
-      const already = contactUids.has(u.uid);
-      return `
-        <div class="chat-row" data-uid="${u.uid}" data-name="${escapeHtml(u.name)}" data-added="${already}">
-          <div class="avatar">${escapeHtml((u.name || '?')[0].toUpperCase())}</div>
-          <div class="chat-meta">
-            <strong>${escapeHtml(u.name)}</strong>
-            <small>${already ? '✓ Уже в контактах — нажмите, чтобы открыть чат' : 'Нажмите, чтобы добавить'}</small>
-          </div>
-        </div>`;
-    }).join('');
-
-    container.querySelectorAll('.chat-row').forEach(r => {
-      r.addEventListener('click', () => {
-        if (r.dataset.added === 'true') {
-          startChatWith(r.dataset.uid, r.dataset.name);
-        } else {
-          addContactByUid(r.dataset.uid);
-        }
-      });
-    });
   });
 }
 
@@ -421,9 +376,6 @@ async function startChatWith(friendUid, friendName) {
    ============================================================ */
 function openChat(id) {
   const chat = state.chats.find(c => c.id === id);
-  if (!chat) {
-    // чат может ещё не успеть прогрузиться в списке — просто откроем
-  }
   const chatData = chat || { id, name: 'Чат' };
 
   state.active = id;
@@ -504,10 +456,7 @@ function switchTab(tab) {
   viewProfile.classList.toggle('hidden', tab !== 'profile');
 
   if (tab === 'profile') refreshProfileUI();
-  if (tab === 'contacts') {
-    subscribeContacts();
-    subscribeAllUsers();
-  }
+  if (tab === 'contacts') subscribeContacts();
 }
 
 document.querySelectorAll('.nav-item').forEach(btn =>
