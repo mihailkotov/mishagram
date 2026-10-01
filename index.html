@@ -3,41 +3,145 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Мессенджер</title>
+  <title>Mishagram</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="app">
-    <aside class="sidebar">
-      <div class="sidebar-head">
-        <h1>Чаты</h1>
-        <div class="head-actions">
-          <button class="round dark" title="Код приглашения">🔑</button>
+
+  <!-- ============ ЭКРАН РЕГИСТРАЦИИ ============ -->
+  <div id="registerScreen" class="register-screen hidden">
+    <div class="register-card">
+      <h2>Регистрация</h2>
+
+      <input id="regName" placeholder="Введите имя" autocomplete="off" maxlength="30">
+      <input id="regBio"  placeholder="О себе (необязательно)" autocomplete="off" maxlength="80">
+
+      <div class="reg-avatar-row">
+        <div class="reg-avatar-preview" id="regPreview">😊</div>
+        <button type="button" class="btn-blue" id="regGallery">📷 Выбрать из галереи</button>
+        <input type="file" id="regFile" accept="image/*" hidden>
+      </div>
+
+      <div class="reg-label">Или выберите готовую:</div>
+      <div class="reg-avatars" id="regAvatars"></div>
+
+      <button type="button" class="btn-blue btn-wide" id="regSubmit">Войти</button>
+    </div>
+  </div>
+
+  <!-- ============ ОСНОВНОЕ ПРИЛОЖЕНИЕ ============ -->
+  <div class="app hidden" id="app">
+    <aside class="sidebar" id="sidebar">
+
+      <div class="sidebar-head" id="sidebarHead">
+        <h1 id="sidebarTitle">Чаты</h1>
+        <div class="head-actions" id="headActions">
+          <button class="round dark" id="inviteBtn" title="Код приглашения">🔑</button>
           <button class="round blue" id="newChat" title="Новый чат">+</button>
         </div>
       </div>
 
-      <div class="search">
-        <span>🔍</span>
-        <input id="searchInput" placeholder="Поиск по чатам">
+      <!-- Вид: Чаты -->
+      <div class="sidebar-view" id="viewChats">
+        <div class="search">
+          <span>🔍</span>
+          <input id="searchInput" placeholder="Поиск по чатам" autocomplete="off">
+        </div>
+        <div id="chatList" class="chat-list"></div>
       </div>
 
-      <div id="chatList" class="chat-list">
+      <!-- Вид: Контакты -->
+      <div class="sidebar-view hidden" id="viewContacts">
         <div class="empty">
-          <div>Чатов пока нет.</div>
-          <div>Создайте свой или вступите по коду.</div>
+          <div>Контактов пока нет.</div>
+          <div>Поделитесь своим кодом или добавьте по коду друга.</div>
         </div>
       </div>
 
-      <nav class="bottom-nav">
-        <button class="nav-item active"><span>▱</span><small>Чаты</small></button>
-        <button class="nav-item"><span>♙</span><small>Контакты</small></button>
-        <button class="nav-item"><span>☷</span><small>Настройки</small></button>
-        <button class="nav-item"><span>😊</span><small>Профиль</small></button>
+      <!-- Вид: Настройки -->
+      <div class="sidebar-view hidden" id="viewSettings">
+        <div class="settings-group">
+          <div class="row" data-action="account">
+            <div class="row-icon ic-blue">👤</div>
+            <div class="row-text"><strong>Аккаунт</strong><small>Имя, аватарка, «О себе»</small></div>
+            <div class="row-arrow">›</div>
+          </div>
+          <div class="row" data-action="appearance">
+            <div class="row-icon ic-orange">🎨</div>
+            <div class="row-text"><strong>Оформление</strong><small>Тема, цвет акцента, размер текста</small></div>
+            <div class="row-arrow">›</div>
+          </div>
+          <div class="row" data-action="chat-settings">
+            <div class="row-icon ic-green">💬</div>
+            <div class="row-text"><strong>Чаты</strong><small>Фон, клавиша Enter</small></div>
+            <div class="row-arrow">›</div>
+          </div>
+          <div class="row" data-action="notifications">
+            <div class="row-icon ic-red">🔔</div>
+            <div class="row-text"><strong>Уведомления</strong><small>Звук и громкость</small></div>
+            <div class="row-arrow">›</div>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="row" data-action="reset">
+            <div class="row-icon ic-blue">↺</div>
+            <div class="row-text"><strong>Сбросить настройки</strong><small>Тема, акцент, размер текста</small></div>
+            <div class="row-arrow">›</div>
+          </div>
+          <div class="row" data-action="switch">
+            <div class="row-icon ic-grey">⇄</div>
+            <div class="row-text"><strong>Сменить аккаунт</strong><small>Выйти из этого профиля</small></div>
+            <div class="row-arrow">›</div>
+          </div>
+          <div class="row" data-action="delete">
+            <div class="row-icon ic-red">🗑️</div>
+            <div class="row-text"><strong class="danger">Удалить аккаунт</strong><small>Созданные вами чаты будут удалены</small></div>
+            <div class="row-arrow">›</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Вид: Профиль -->
+      <div class="sidebar-view hidden" id="viewProfile">
+        <div class="profile-header">
+          <div class="profile-avatar" id="profileAvatar">😊</div>
+          <div class="profile-name" id="profileName">—</div>
+          <div class="profile-bio" id="profileBio"></div>
+        </div>
+
+        <div class="code-card">
+          <div class="code-label">МОЙ КОД ДЛЯ КОНТАКТОВ</div>
+          <div class="code-value" id="myCode">------</div>
+          <div class="code-hint">Отправьте этот код другу, и он добавит вас в контакты</div>
+          <button type="button" class="btn-blue" id="copyCode">Скопировать код</button>
+        </div>
+
+        <div class="settings-group">
+          <div class="row" data-action="edit-profile">
+            <div class="row-icon ic-blue">✏️</div>
+            <div class="row-text"><strong>Изменить профиль</strong><small>Имя, аватарка, «О себе»</small></div>
+            <div class="row-arrow">›</div>
+          </div>
+          <div class="row" data-action="my-chats">
+            <div class="row-icon ic-green">💬</div>
+            <div class="row-text"><strong>Мои чаты</strong><small><span id="myChatsCount">0</span> шт.</small></div>
+            <div class="row-arrow">›</div>
+          </div>
+        </div>
+
+        <div class="app-footer">Веб-мессенджер</div>
+      </div>
+
+      <nav class="bottom-nav" id="bottomNav">
+        <button class="nav-item active" data-tab="chats"><span>▱</span><small>Чаты</small></button>
+        <button class="nav-item" data-tab="contacts"><span>♙</span><small>Контакты</small></button>
+        <button class="nav-item" data-tab="settings"><span>☷</span><small>Настройки</small></button>
+        <button class="nav-item" data-tab="profile"><span>😊</span><small>Профиль</small></button>
       </nav>
     </aside>
 
-    <main class="main">
+    <main class="main" id="main">
       <div class="pattern"></div>
       <section id="welcome" class="welcome">Выберите чат слева</section>
 
@@ -61,13 +165,14 @@
     </main>
   </div>
 
+  <!-- ============ МОДАЛКА НОВОГО ЧАТА ============ -->
   <div id="modal" class="modal hidden">
     <div class="modal-box">
       <h2>Новый чат</h2>
-      <input id="chatNameInput" placeholder="Имя собеседника">
+      <input id="chatNameInput" placeholder="Имя собеседника" autocomplete="off">
       <div class="modal-actions">
-        <button id="cancelModal">Отмена</button>
-        <button id="createChat">Создать</button>
+        <button id="cancelModal" type="button">Отмена</button>
+        <button id="createChat" type="button">Создать</button>
       </div>
     </div>
   </div>
