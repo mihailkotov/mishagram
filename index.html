@@ -52,10 +52,11 @@
 
       <!-- Вид: Контакты -->
       <div class="sidebar-view hidden" id="viewContacts">
-        <div class="empty">
-          <div>Контактов пока нет.</div>
-          <div>Поделитесь своим кодом или добавьте по коду друга.</div>
+        <div class="search">
+          <span>🔍</span>
+          <input id="searchCodeInput" placeholder="Введите код друга" autocomplete="off" maxlength="6">
         </div>
+        <div id="contactsList" class="chat-list"></div>
       </div>
 
       <!-- Вид: Настройки -->
@@ -176,6 +177,11 @@
       </div>
     </div>
   </div>
+
+  <!-- Firebase SDK (compat версия) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 
   <script src="app.js"></script>
 </body>
