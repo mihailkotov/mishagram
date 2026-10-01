@@ -1,105 +1,87 @@
 /* ============================================================
-   Mishagram — localStorage-only demo
+   Mishagram + Firebase Firestore
    ============================================================ */
 
-/* ---------- Безопасный парсинг ---------- */
-function load(key, fallback) {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw);
-    return parsed ?? fallback;
-  } catch {
-    return fallback;
-  }
-}
-function saveJSON(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
-}
+/* ---------- 1. КОНФИГ FIREBASE ----------
+   ⚠️ ЗАМЕНИ НА СВОЙ КОНФИГ ИЗ FIREBASE CONSOLE!
+------------------------------------------- */
+const firebaseConfig = {
+  apiKey: "AIzaSyBoehRziARm01S0XWYH6ez63TmGa-ycwwE",
+  authDomain: "mishagram-b1477.firebaseapp.com",
+  projectId: "mishagram-b1477",
+  storageBucket: "mishagram-b1477.firebasestorage.app",
+  messagingSenderId: "205897759661",
+  appId: "26ca3a96a61f034efc3f24"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
 
 /* ---------- Аватарки ---------- */
 const AVATARS = [
-  { emoji: '😊', color: '#ffb8b8' },
-  { emoji: '🕶️', color: '#ffe08a' },
-  { emoji: '🤖', color: '#b8f0c0' },
-  { emoji: '👻', color: '#d5c0ff' },
-  { emoji: '🦊', color: '#ffd0a0' },
-  { emoji: '🐼', color: '#c8b8ff' },
-  { emoji: '🐱', color: '#d8b8ff' },
-  { emoji: '🐶', color: '#ffb8d0' },
-  { emoji: '🦁', color: '#ffc890' },
-  { emoji: '🐸', color: '#b8ecc0' },
-  { emoji: '🐵', color: '#b8ecc0' },
-  { emoji: '🦄', color: '#b8ecdc' },
-  { emoji: '🐧', color: '#b8d8ff' },
-  { emoji: '🐤', color: '#e0c0ff' },
-  { emoji: '🦉', color: '#ffc0d8' },
-  { emoji: '🐢', color: '#ffd8a8' },
-  { emoji: '👽', color: '#e8ff9a' },
-  { emoji: '😈', color: '#fff080' },
-  { emoji: '🌵', color: '#b8ecc0' },
-  { emoji: '🍕', color: '#b8e8dc' },
-  { emoji: '⚡', color: '#b8c8ff' },
-  { emoji: '🔥', color: '#e0c0ff' },
-  { emoji: '🌈', color: '#ffb8d0' },
-  { emoji: '🚀', color: '#ffb8c8' },
+  { emoji: '😊', color: '#ffb8b8' }, { emoji: '🕶️', color: '#ffe08a' },
+  { emoji: '🤖', color: '#b8f0c0' }, { emoji: '👻', color: '#d5c0ff' },
+  { emoji: '🦊', color: '#ffd0a0' }, { emoji: '🐼', color: '#c8b8ff' },
+  { emoji: '🐱', color: '#d8b8ff' }, { emoji: '🐶', color: '#ffb8d0' },
+  { emoji: '🦁', color: '#ffc890' }, { emoji: '🐸', color: '#b8ecc0' },
+  { emoji: '🐵', color: '#b8ecc0' }, { emoji: '🦄', color: '#b8ecdc' },
+  { emoji: '🐧', color: '#b8d8ff' }, { emoji: '🐤', color: '#e0c0ff' },
+  { emoji: '🦉', color: '#ffc0d8' }, { emoji: '🐢', color: '#ffd8a8' },
+  { emoji: '👽', color: '#e8ff9a' }, { emoji: '😈', color: '#fff080' },
+  { emoji: '🌵', color: '#b8ecc0' }, { emoji: '🍕', color: '#b8e8dc' },
+  { emoji: '⚡', color: '#b8c8ff' }, { emoji: '🔥', color: '#e0c0ff' },
+  { emoji: '🌈', color: '#ffb8d0' }, { emoji: '🚀', color: '#ffb8c8' },
 ];
 
 /* ---------- Состояние ---------- */
 const state = {
-  chats:   load('demo_chats', []),
-  profile: load('demo_profile', null),
-  code:    load('demo_code', null),
-  active:  null,
-  tab:     'chats'
+  uid: null,            // Firebase UID
+  profile: null,        // { name, bio, avatar, code }
+  contacts: [],         // массив профилей друзей
+  chats: [],            // массив чатов
+  active: null,         // id открытого чата
+  tab: 'chats',
+  unsubMessages: null,  // отписка от текущего чата
+  unsubContacts: null,
+  unsubChats: null
 };
 
 /* ---------- DOM ---------- */
-const $ = sel => document.querySelector(sel);
-
-const app            = $('#app');
+const $ = s => document.querySelector(s);
+const app = $('#app');
 const registerScreen = $('#registerScreen');
-const sidebar        = $('#sidebar');
-const sidebarTitle   = $('#sidebarTitle');
-const headActions    = $('#headActions');
-
-const viewChats    = $('#viewChats');
+const sidebar = $('#sidebar');
+const sidebarTitle = $('#sidebarTitle');
+const headActions = $('#headActions');
+const viewChats = $('#viewChats');
 const viewContacts = $('#viewContacts');
 const viewSettings = $('#viewSettings');
-const viewProfile  = $('#viewProfile');
-
-const chatList    = $('#chatList');
+const viewProfile = $('#viewProfile');
+const chatList = $('#chatList');
 const searchInput = $('#searchInput');
-const welcome     = $('#welcome');
-const chatView    = $('#chatView');
-const chatName    = $('#chatName');
-const chatAvatar  = $('#chatAvatar');
-const messagesEl  = $('#messages');
-const form        = $('#messageForm');
-const input       = $('#messageInput');
-const modal       = $('#modal');
-const nameInput   = $('#chatNameInput');
+const searchCodeInput = $('#searchCodeInput');
+const welcome = $('#welcome');
+const chatView = $('#chatView');
+const chatName = $('#chatName');
+const chatAvatar = $('#chatAvatar');
+const messagesEl = $('#messages');
+const form = $('#messageForm');
+const input = $('#messageInput');
+const modal = $('#modal');
+const nameInput = $('#chatNameInput');
 
 /* ---------- Утилиты ---------- */
-function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+function escapeHtml(v) {
+  return String(v ?? '').replace(/[&<>"']/g, ch => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'
   }[ch]));
-}
-function uid() {
-  return (crypto && typeof crypto.randomUUID === 'function')
-    ? crypto.randomUUID()
-    : String(Date.now()) + Math.random().toString(16).slice(2);
 }
 function formatTime(ts) {
   if (!ts) return '';
   const d = new Date(ts);
   return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
-function saveChats()   { saveJSON('demo_chats', state.chats); }
-function saveProfile() { saveJSON('demo_profile', state.profile); }
-function saveCode()    { saveJSON('demo_code', state.code); }
-
 function genCode() {
   const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
   let out = '';
@@ -107,10 +89,8 @@ function genCode() {
   return out;
 }
 
-/* ============================================================
-   АВАТАРЫ: рендер и выбор
-   ============================================================ */
-let regAvatar = AVATARS[0]; // выбранная на экране регистрации
+/* ---------- Аватары ---------- */
+let regAvatar = AVATARS[0];
 
 function renderAvatarPicker(container, selected, onPick) {
   container.innerHTML = AVATARS.map((a, i) => `
@@ -118,7 +98,6 @@ function renderAvatarPicker(container, selected, onPick) {
          data-i="${i}"
          style="background:${a.color}">${a.emoji}</div>
   `).join('');
-
   container.querySelectorAll('.ava').forEach(el => {
     el.addEventListener('click', () => {
       const a = AVATARS[Number(el.dataset.i)];
@@ -130,11 +109,7 @@ function renderAvatarPicker(container, selected, onPick) {
 }
 
 function applyAvatar(el, avatar) {
-  if (!avatar) {
-    el.textContent = '?';
-    el.style.background = '#263548';
-    return;
-  }
+  if (!avatar) { el.textContent = '?'; el.style.background = '#263548'; return; }
   if (avatar.type === 'image') {
     el.innerHTML = `<img src="${avatar.value}" alt="">`;
     el.style.background = '#263548';
@@ -145,10 +120,37 @@ function applyAvatar(el, avatar) {
 }
 
 /* ============================================================
-   РЕГИСТРАЦИЯ
+   2. АУТЕНТИФИКАЦИЯ (анонимно)
+   ============================================================ */
+auth.signInAnonymously()
+  .then(() => {
+    // onAuthStateChanged сработает автоматически
+  })
+  .catch(err => {
+    console.error('Ошибка входа:', err);
+    alert('Не удалось подключиться к Firebase. Проверь конфиг и интернет.');
+  });
+
+auth.onAuthStateChanged(async user => {
+  if (!user) return;
+  state.uid = user.uid;
+
+  // Загружаем профиль из Firestore
+  const doc = await db.collection('users').doc(user.uid).get();
+  if (doc.exists) {
+    state.profile = doc.data();
+    hideRegister();
+    refreshProfileUI();
+    startRealtime();
+  } else {
+    showRegister();
+  }
+});
+
+/* ============================================================
+   3. РЕГИСТРАЦИЯ
    ============================================================ */
 function showRegister() {
-  // Подставляем профиль, если редактирование
   const edit = state.profile;
   $('#regName').value = edit?.name || '';
   $('#regBio').value  = edit?.bio  || '';
@@ -164,7 +166,6 @@ function showRegister() {
   app.classList.add('hidden');
   setTimeout(() => $('#regName').focus(), 40);
 }
-
 function hideRegister() {
   registerScreen.classList.add('hidden');
   app.classList.remove('hidden');
@@ -184,284 +185,392 @@ $('#regFile').addEventListener('change', e => {
   reader.readAsDataURL(file);
 });
 
-$('#regSubmit').addEventListener('click', () => {
+$('#regSubmit').addEventListener('click', async () => {
   const name = $('#regName').value.trim();
   if (!name) { $('#regName').focus(); return; }
 
-  state.profile = {
+  // Генерируем уникальный код
+  let code = state.profile?.code || genCode();
+  // Проверяем, не занят ли код
+  const codeCheck = await db.collection('users').where('code', '==', code).get();
+  if (!codeCheck.empty && codeCheck.docs[0].id !== state.uid) {
+    code = genCode(); // перегенерируем
+  }
+
+  const profile = {
     name,
     bio: $('#regBio').value.trim(),
-    avatar: regAvatar
+    avatar: regAvatar,
+    code,
+    uid: state.uid
   };
 
-  if (!state.code) {
-    state.code = genCode();
-    saveCode();
-  }
+  await db.collection('users').doc(state.uid).set(profile);
+  state.profile = profile;
 
-  saveProfile();
   hideRegister();
   refreshProfileUI();
+  startRealtime();
 });
 
 /* ============================================================
-   ПРОФИЛЬ
+   4. РЕАЛТАЙМ: ПОДПИСКИ
    ============================================================ */
-function refreshProfileUI() {
-  const p = state.profile || { name: '—', bio: '', avatar: null };
+function startRealtime() {
+  // Подписка на чаты пользователя
+  if (state.unsubChats) state.unsubChats();
+  state.unsubChats = db.collection('chats')
+    .where('members', 'array-contains', state.uid)
+    .onSnapshot(snap => {
+      state.chats = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      renderChats(searchInput.value);
+      refreshProfileUI();
+    });
 
-  applyAvatar($('#profileAvatar'), p.avatar);
-  $('#profileName').textContent = p.name;
-  $('#profileBio').textContent  = p.bio || '';
-  $('#myCode').textContent      = state.code || '------';
-  $('#myChatsCount').textContent = state.chats.length;
-
-  // Обновляем эмодзи в кнопке "Профиль" внизу
-  const profileNav = document.querySelector('.nav-item[data-tab="profile"] span');
-  if (profileNav) profileNav.textContent = p.avatar?.emoji || '😊';
+  // Подписка на контакты
+  if (state.unsubContacts) state.unsubContacts();
+  state.unsubContacts = db.collection('users')
+    .where('uid', '!=', state.uid)
+    .onSnapshot(async snap => {
+      // Фильтруем тех, кто в контактах
+      const contacts = [];
+      for (const d of snap.docs) {
+        const data = d.data();
+        const isContact = await isInContacts(data.uid);
+        if (isContact) contacts.push(data);
+      }
+      state.contacts = contacts;
+      renderContacts();
+    });
 }
 
-$('#copyCode').addEventListener('click', async () => {
-  const code = state.code || '';
-  if (!code) return;
-  try {
-    await navigator.clipboard.writeText(code);
-    $('#copyCode').textContent = 'Скопировано!';
-    setTimeout(() => { $('#copyCode').textContent = 'Скопировать код'; }, 1400);
-  } catch {
-    alert('Ваш код: ' + code);
-  }
-});
-
-/* ============================================================
-   ПЕРЕКЛЮЧЕНИЕ ТАБОВ
-   ============================================================ */
-function switchTab(tab) {
-  state.tab = tab;
-
-  // навигация
-  document.querySelectorAll('.nav-item').forEach(b => {
-    b.classList.toggle('active', b.dataset.tab === tab);
-  });
-
-  // заголовок + действия
-  const titles = { chats: 'Чаты', contacts: 'Контакты', settings: 'Настройки', profile: 'Профиль' };
-  sidebarTitle.textContent = titles[tab] || 'Чаты';
-  headActions.style.display = tab === 'chats' ? 'flex' : 'none';
-
-  // показ соответствующего вида
-  viewChats.classList.toggle('hidden', tab !== 'chats');
-  viewContacts.classList.toggle('hidden', tab !== 'contacts');
-  viewSettings.classList.toggle('hidden', tab !== 'settings');
-  viewProfile.classList.toggle('hidden', tab !== 'profile');
-
-  if (tab === 'profile') refreshProfileUI();
+async function isInContacts(uid) {
+  if (!state.profile) return false;
+  const contactDoc = await db.collection('users').doc(state.uid)
+    .collection('contacts').doc(uid).get();
+  return contactDoc.exists;
 }
 
-document.querySelectorAll('.nav-item').forEach(btn => {
-  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
-});
-
 /* ============================================================
-   РЕНДЕР СПИСКА ЧАТОВ
+   5. РЕНДЕР СПИСКА ЧАТОВ
    ============================================================ */
 function renderChats(filter = '') {
   const q = filter.trim().toLowerCase();
-
   if (!state.chats.length) {
-    chatList.innerHTML = `
-      <div class="empty">
-        <div>Чатов пока нет.</div>
-        <div>Создайте свой или вступите по коду.</div>
-      </div>`;
+    chatList.innerHTML = `<div class="empty"><div>Чатов пока нет.</div><div>Добавьте контакт по коду.</div></div>`;
     return;
   }
-
-  const list = state.chats.filter(c => c.name.toLowerCase().includes(q));
+  const list = state.chats.filter(c => (c.name || '').toLowerCase().includes(q));
   if (!list.length) {
     chatList.innerHTML = `<div class="empty">Ничего не найдено</div>`;
     return;
   }
-
   chatList.innerHTML = list.map(c => {
-    const last = c.messages.at(-1);
-    const preview = last ? last.text : 'Нет сообщений';
+    const last = c.lastMessage || 'Нет сообщений';
     return `
       <div class="chat-row" data-id="${c.id}">
-        <div class="avatar">${escapeHtml(c.name[0].toUpperCase())}</div>
+        <div class="avatar">${escapeHtml((c.name || '?')[0].toUpperCase())}</div>
         <div class="chat-meta">
-          <strong>${escapeHtml(c.name)}</strong>
-          <small>${escapeHtml(preview)}</small>
+          <strong>${escapeHtml(c.name || 'Чат')}</strong>
+          <small>${escapeHtml(last)}</small>
         </div>
       </div>`;
   }).join('');
+  chatList.querySelectorAll('.chat-row').forEach(r =>
+    r.addEventListener('click', () => openChat(r.dataset.id))
+  );
+}
 
-  chatList.querySelectorAll('.chat-row').forEach(row => {
-    row.addEventListener('click', () => openChat(row.dataset.id));
+/* ============================================================
+   6. РЕНДЕР КОНТАКТОВ
+   ============================================================ */
+function renderContacts() {
+  const container = $('#contactsList');
+  if (!state.contacts.length) {
+    container.innerHTML = `
+      <div class="empty">
+        <div>Контактов пока нет.</div>
+        <div>Введите код друга выше, чтобы добавить его.</div>
+      </div>`;
+    return;
+  }
+  container.innerHTML = state.contacts.map(c => `
+    <div class="chat-row" data-uid="${c.uid}" data-code="${c.code}">
+      <div class="avatar">${escapeHtml((c.name || '?')[0].toUpperCase())}</div>
+      <div class="chat-meta">
+        <strong>${escapeHtml(c.name)}</strong>
+        <small>${escapeHtml(c.bio || 'Контакты')}</small>
+      </div>
+    </div>
+  `).join('');
+
+  container.querySelectorAll('.chat-row').forEach(r => {
+    r.addEventListener('click', async () => {
+      await startChatWith(r.dataset.uid, r.dataset.code);
+    });
   });
 }
 
 /* ============================================================
-   ЧАТ
+   7. ДОБАВЛЕНИЕ КОНТАКТА ПО КОДУ
+   ============================================================ */
+searchCodeInput.addEventListener('input', async e => {
+  const code = e.target.value.trim().toUpperCase();
+  if (code.length !== 6) return;
+
+  const snap = await db.collection('users').where('code', '==', code).get();
+  if (snap.empty) {
+    alert('Пользователь с таким кодом не найден');
+    searchCodeInput.value = '';
+    return;
+  }
+
+  const doc = snap.docs[0];
+  if (doc.id === state.uid) {
+    alert('Это ваш собственный код 🙂');
+    return;
+  }
+
+  const friend = doc.data();
+
+  // Добавляем друг друга в контакты (двусторонне)
+  await db.collection('users').doc(state.uid).collection('contacts').doc(friend.uid).set({
+    name: friend.name, bio: friend.bio, avatar: friend.avatar, code: friend.code, uid: friend.uid
+  });
+  await db.collection('users').doc(friend.uid).collection('contacts').doc(state.uid).set({
+    name: state.profile.name, bio: state.profile.bio, avatar: state.profile.avatar,
+    code: state.profile.code, uid: state.uid
+  });
+
+  // Создаём чат между вами
+  await startChatWith(friend.uid, friend.code, friend.name);
+
+  searchCodeInput.value = '';
+  alert('Контакт добавлен! Чат создан.');
+});
+
+/* ============================================================
+   8. СОЗДАНИЕ ЧАТА
+   ============================================================ */
+async function startChatWith(friendUid, friendCode, friendName) {
+  // Ищем существующий чат
+  const existing = await db.collection('chats')
+    .where('members', '==', [state.uid, friendUid].sort())
+    .get();
+
+  let chatId;
+  if (!existing.empty) {
+    chatId = existing.docs[0].id;
+  } else {
+    // Создаём новый
+    const ref = await db.collection('chats').add({
+      members: [state.uid, friendUid].sort(),
+      name: friendName || 'Чат',
+      createdAt: Date.now(),
+      lastMessage: ''
+    });
+    chatId = ref.id;
+  }
+
+  // Открываем чат
+  switchTab('chats');
+  setTimeout(() => openChat(chatId), 300);
+}
+
+/* ============================================================
+   9. ОТКРЫТИЕ ЧАТА + MESSAGES
    ============================================================ */
 function openChat(id) {
   const chat = state.chats.find(c => c.id === id);
   if (!chat) return;
 
   state.active = id;
-  chatName.textContent = chat.name;
-  chatAvatar.textContent = chat.name[0].toUpperCase();
+  chatName.textContent = chat.name || 'Чат';
+  chatAvatar.textContent = (chat.name || '?')[0].toUpperCase();
 
   welcome.classList.add('hidden');
   chatView.classList.remove('hidden');
   sidebar.classList.add('chat-open');
 
-  renderMessages();
+  // Отписка от предыдущего чата
+  if (state.unsubMessages) state.unsubMessages();
+
+  // Realtime-подписка на сообщения
+  state.unsubMessages = db.collection('chats').doc(id)
+    .collection('messages')
+    .orderBy('time')
+    .onSnapshot(snap => {
+      messagesEl.innerHTML = snap.docs.map(d => {
+        const m = d.data();
+        return `
+          <div class="msg ${m.uid === state.uid ? 'me' : ''}">
+            <div>${escapeHtml(m.text)}</div>
+            <span class="msg-time">${formatTime(m.time)}</span>
+          </div>`;
+      }).join('');
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    });
+
   input.focus();
 }
 
 function closeChat() {
+  if (state.unsubMessages) {
+    state.unsubMessages();
+    state.unsubMessages = null;
+  }
   state.active = null;
   chatView.classList.add('hidden');
   welcome.classList.remove('hidden');
   sidebar.classList.remove('chat-open');
 }
 
-function renderMessages() {
-  const chat = state.chats.find(c => c.id === state.active);
-  if (!chat) return;
-
-  messagesEl.innerHTML = chat.messages.map(m => `
-    <div class="msg ${m.me ? 'me' : ''}">
-      <div>${escapeHtml(m.text)}</div>
-      ${m.time ? `<span class="msg-time">${formatTime(m.time)}</span>` : ''}
-    </div>
-  `).join('');
-  messagesEl.scrollTop = messagesEl.scrollHeight;
-}
-
-form.addEventListener('submit', e => {
+/* ============================================================
+   10. ОТПРАВКА СООБЩЕНИЯ
+   ============================================================ */
+form.addEventListener('submit', async e => {
   e.preventDefault();
   const text = input.value.trim();
   if (!text || !state.active) return;
 
-  const chat = state.chats.find(c => c.id === state.active);
-  if (!chat) return;
+  await db.collection('chats').doc(state.active).collection('messages').add({
+    text,
+    uid: state.uid,
+    time: Date.now()
+  });
 
-  chat.messages.push({ text, me: true, time: Date.now() });
+  // Обновляем lastMessage
+  await db.collection('chats').doc(state.active).update({
+    lastMessage: text
+  });
+
   input.value = '';
-  saveChats();
-  renderMessages();
-  renderChats(searchInput.value);
 });
 
 /* ============================================================
-   МОДАЛКА НОВОГО ЧАТА
+   11. ПЕРЕКЛЮЧЕНИЕ ТАБОВ
    ============================================================ */
-function openModal() {
-  modal.classList.remove('hidden');
-  nameInput.value = '';
-  setTimeout(() => nameInput.focus(), 30);
-}
-function closeModal() {
-  modal.classList.add('hidden');
-  nameInput.value = '';
+function switchTab(tab) {
+  state.tab = tab;
+  document.querySelectorAll('.nav-item').forEach(b =>
+    b.classList.toggle('active', b.dataset.tab === tab)
+  );
+  const titles = { chats: 'Чаты', contacts: 'Контакты', settings: 'Настройки', profile: 'Профиль' };
+  sidebarTitle.textContent = titles[tab] || 'Чаты';
+  headActions.style.display = tab === 'chats' ? 'flex' : 'none';
+
+  viewChats.classList.toggle('hidden', tab !== 'chats');
+  viewContacts.classList.toggle('hidden', tab !== 'contacts');
+  viewSettings.classList.toggle('hidden', tab !== 'settings');
+  viewProfile.classList.toggle('hidden', tab !== 'profile');
+
+  if (tab === 'profile') refreshProfileUI();
+  if (tab === 'contacts') renderContacts();
 }
 
-$('#newChat').addEventListener('click', openModal);
-$('#cancelModal').addEventListener('click', closeModal);
+document.querySelectorAll('.nav-item').forEach(btn =>
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab))
+);
 
-$('#inviteBtn').addEventListener('click', () => {
-  if (!state.code) return;
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(state.code);
+/* ============================================================
+   12. ПРОФИЛЬ
+   ============================================================ */
+function refreshProfileUI() {
+  const p = state.profile;
+  if (!p) return;
+  applyAvatar($('#profileAvatar'), p.avatar);
+  $('#profileName').textContent = p.name;
+  $('#profileBio').textContent = p.bio || '';
+  $('#myCode').textContent = p.code || '------';
+  $('#myChatsCount').textContent = state.chats.length;
+  const nav = document.querySelector('.nav-item[data-tab="profile"] span');
+  if (nav) nav.textContent = p.avatar?.emoji || '😊';
+}
+
+$('#copyCode').addEventListener('click', async () => {
+  if (!state.profile?.code) return;
+  try {
+    await navigator.clipboard.writeText(state.profile.code);
+    $('#copyCode').textContent = 'Скопировано!';
+    setTimeout(() => { $('#copyCode').textContent = 'Скопировать код'; }, 1400);
+  } catch {
+    alert('Ваш код: ' + state.profile.code);
   }
-  alert('Ваш код приглашения: ' + state.code + '\n\n(Скопирован в буфер обмена)');
 });
 
-$('#createChat').addEventListener('click', () => {
+/* ============================================================
+   13. МОДАЛКА НОВОГО ЧАТА (оставил для совместимости)
+   ============================================================ */
+function openModal() { modal.classList.remove('hidden'); nameInput.value = ''; setTimeout(() => nameInput.focus(), 30); }
+function closeModal() { modal.classList.add('hidden'); nameInput.value = ''; }
+$('#newChat').addEventListener('click', openModal);
+$('#cancelModal').addEventListener('click', closeModal);
+modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal(); });
+
+$('#inviteBtn').addEventListener('click', () => {
+  if (!state.profile?.code) return;
+  navigator.clipboard?.writeText(state.profile.code);
+  alert('Ваш код приглашения: ' + state.profile.code + '\n\n(Скопирован)');
+});
+
+$('#createChat').addEventListener('click', async () => {
   const name = nameInput.value.trim();
   if (!name) { nameInput.focus(); return; }
-
-  const chat = { id: uid(), name, messages: [] };
-  state.chats.unshift(chat);
-  saveChats();
-  renderChats(searchInput.value);
-  refreshProfileUI();
+  // Ищем пользователя по имени — упрощённо: создаём "личный" чат без собеседника
+  const ref = await db.collection('chats').add({
+    members: [state.uid],
+    name,
+    createdAt: Date.now(),
+    lastMessage: ''
+  });
   closeModal();
-  openChat(chat.id);
+  openChat(ref.id);
 });
 
 nameInput.addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); $('#createChat').click(); }
 });
 
-modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
-document.addEventListener('keydown', e => {
-  if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
-});
-
 /* ============================================================
-   НАСТРОЙКИ / ПРОФИЛЬ — обработка кликов
+   14. ДЕЙСТВИЯ В НАСТРОЙКАХ
    ============================================================ */
 document.querySelectorAll('[data-action]').forEach(row => {
-  row.addEventListener('click', () => {
+  row.addEventListener('click', async () => {
     const a = row.dataset.action;
-
-    if (a === 'edit-profile' || a === 'account') {
-      showRegister();
-    } else if (a === 'my-chats') {
-      switchTab('chats');
-    } else if (a === 'switch') {
-      if (confirm('Выйти из профиля? Чаты останутся в этом браузере.')) {
-        localStorage.removeItem('demo_profile');
-        state.profile = null;
-        showRegister();
+    if (a === 'edit-profile' || a === 'account') showRegister();
+    else if (a === 'my-chats') switchTab('chats');
+    else if (a === 'switch') {
+      if (confirm('Выйти из профиля?')) {
+        await auth.signOut();
+        location.reload();
       }
-    } else if (a === 'delete') {
-      if (confirm('Удалить аккаунт и все чаты? Это нельзя отменить.')) {
-        localStorage.removeItem('demo_profile');
-        localStorage.removeItem('demo_chats');
-        localStorage.removeItem('demo_code');
-        state.profile = null;
-        state.chats = [];
-        state.code = null;
-        state.active = null;
-        closeChat();
-        renderChats();
-        showRegister();
-      }
-    } else if (a === 'reset') {
-      alert('Сбросить можно будет после добавления темы/акцента 🙂');
-    } else {
-      alert('Этот раздел появится позже 🙂');
     }
+    else if (a === 'delete') {
+      if (confirm('Удалить аккаунт? Все данные будут стёрты.')) {
+        // Удаляем профиль и чаты
+        await db.collection('users').doc(state.uid).delete();
+        const chatsSnap = await db.collection('chats').where('members', 'array-contains', state.uid).get();
+        for (const d of chatsSnap.docs) await d.ref.delete();
+        await auth.currentUser.delete();
+        location.reload();
+      }
+    }
+    else alert('Этот раздел появится позже 🙂');
   });
 });
 
 /* ============================================================
-   ПОИСК
+   15. ПОИСК
    ============================================================ */
 searchInput.addEventListener('input', e => renderChats(e.target.value));
 
 /* ============================================================
-   КНОПКА "НАЗАД" НА МОБИЛЬНЫХ
+   16. КНОПКА НАЗАД (мобильные)
    ============================================================ */
 $('#backBtn').addEventListener('click', closeChat);
 
 /* ============================================================
-   ИНИЦИАЛИЗАЦИЯ
+   17. СТАРТ
    ============================================================ */
-function init() {
-  renderChats();
-
-  if (!state.profile) {
-    showRegister();
-  } else {
-    hideRegister();
-    refreshProfileUI();
-  }
-
-  switchTab('chats');
-}
-init();
+switchTab('chats');
