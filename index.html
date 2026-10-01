@@ -52,11 +52,16 @@
 
       <!-- Вид: Контакты -->
       <div class="sidebar-view hidden" id="viewContacts">
-        <div class="search">
-          <span>🔍</span>
-          <input id="searchCodeInput" placeholder="Введите код друга" autocomplete="off" maxlength="6">
+        <div class="add-code-box">
+          <input id="searchCodeInput" placeholder="Код друга" autocomplete="off" maxlength="6">
+          <button type="button" id="addByCode">Добавить</button>
         </div>
-        <div id="contactsList" class="chat-list"></div>
+
+        <div class="section-title">Мои контакты</div>
+        <div id="contactsList" class="chat-list" style="padding-top:0"></div>
+
+        <div class="section-title">Все пользователи</div>
+        <div id="allUsersList" class="chat-list" style="padding-top:0"></div>
       </div>
 
       <!-- Вид: Настройки -->
@@ -178,7 +183,7 @@
     </div>
   </div>
 
-  <!-- Firebase SDK (compat версия) -->
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
