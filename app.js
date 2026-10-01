@@ -3,7 +3,7 @@
    ============================================================ */
 
 /* ---------- 1. КОНФИГ FIREBASE ----------
-   ⚠️ ЗАМЕНИ НА СВОЙ КОНФИГ ИЗ FIREBASE CONSOLE!
+   ⚠️ ВСТАВЬ СВОЙ КОНФИГ ИЗ FIREBASE CONSOLE
 ------------------------------------------- */
 const firebaseConfig = {
   apiKey: "AIzaSyBoehRziARm01S0XWYH6ez63TmGa-ycwwE",
@@ -11,7 +11,7 @@ const firebaseConfig = {
   projectId: "mishagram-b1477",
   storageBucket: "mishagram-b1477.firebasestorage.app",
   messagingSenderId: "205897759661",
-  appId: "26ca3a96a61f034efc3f24"
+   appId: "1:205897759661:web:26ca3a96a61f034efc3f24",
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -36,14 +36,15 @@ const AVATARS = [
 
 /* ---------- Состояние ---------- */
 const state = {
-  uid: null,            // Firebase UID
-  profile: null,        // { name, bio, avatar, code }
-  contacts: [],         // массив профилей друзей
-  chats: [],            // массив чатов
-  active: null,         // id открытого чата
+  uid: null,
+  profile: null,
+  contacts: [],
+  chats: [],
+  active: null,
   tab: 'chats',
-  unsubMessages: null,  // отписка от текущего чата
+  unsubMessages: null,
   unsubContacts: null,
+  unsubAllUsers: null,
   unsubChats: null
 };
 
@@ -60,7 +61,6 @@ const viewSettings = $('#viewSettings');
 const viewProfile = $('#viewProfile');
 const chatList = $('#chatList');
 const searchInput = $('#searchInput');
-const searchCodeInput = $('#searchCodeInput');
 const welcome = $('#welcome');
 const chatView = $('#chatView');
 const chatName = $('#chatName');
@@ -120,28 +120,25 @@ function applyAvatar(el, avatar) {
 }
 
 /* ============================================================
-   2. АУТЕНТИФИКАЦИЯ (анонимно)
+   2. АУТЕНТИФИКАЦИЯ
    ============================================================ */
-auth.signInAnonymously()
-  .then(() => {
-    // onAuthStateChanged сработает автоматически
-  })
-  .catch(err => {
-    console.error('Ошибка входа:', err);
-    alert('Не удалось подключиться к Firebase. Проверь конфиг и интернет.');
-  });
+auth.signInAnonymously().catch(err => {
+  console.error('Ошибка входа:', err);
+  alert('Не удалось подключиться к Firebase. Проверь конфиг и интернет.');
+});
 
 auth.onAuthStateChanged(async user => {
   if (!user) return;
   state.uid = user.uid;
 
-  // Загружаем профиль из Firestore
   const doc = await db.collection('users').doc(user.uid).get();
   if (doc.exists) {
     state.profile = doc.data();
     hideRegister();
     refreshProfileUI();
     startRealtime();
+    subscribeContacts();
+    subscribeAllUsers();
   } else {
     showRegister();
   }
@@ -189,12 +186,10 @@ $('#regSubmit').addEventListener('click', async () => {
   const name = $('#regName').value.trim();
   if (!name) { $('#regName').focus(); return; }
 
-  // Генерируем уникальный код
   let code = state.profile?.code || genCode();
-  // Проверяем, не занят ли код
   const codeCheck = await db.collection('users').where('code', '==', code).get();
   if (!codeCheck.empty && codeCheck.docs[0].id !== state.uid) {
-    code = genCode(); // перегенерируем
+    code = genCode();
   }
 
   const profile = {
@@ -211,13 +206,14 @@ $('#regSubmit').addEventListener('click', async () => {
   hideRegister();
   refreshProfileUI();
   startRealtime();
+  subscribeContacts();
+  subscribeAllUsers();
 });
 
 /* ============================================================
-   4. РЕАЛТАЙМ: ПОДПИСКИ
+   4. РЕАЛТАЙМ: ЧАТЫ
    ============================================================ */
 function startRealtime() {
-  // Подписка на чаты пользователя
   if (state.unsubChats) state.unsubChats();
   state.unsubChats = db.collection('chats')
     .where('members', 'array-contains', state.uid)
@@ -226,29 +222,6 @@ function startRealtime() {
       renderChats(searchInput.value);
       refreshProfileUI();
     });
-
-  // Подписка на контакты
-  if (state.unsubContacts) state.unsubContacts();
-  state.unsubContacts = db.collection('users')
-    .where('uid', '!=', state.uid)
-    .onSnapshot(async snap => {
-      // Фильтруем тех, кто в контактах
-      const contacts = [];
-      for (const d of snap.docs) {
-        const data = d.data();
-        const isContact = await isInContacts(data.uid);
-        if (isContact) contacts.push(data);
-      }
-      state.contacts = contacts;
-      renderContacts();
-    });
-}
-
-async function isInContacts(uid) {
-  if (!state.profile) return false;
-  const contactDoc = await db.collection('users').doc(state.uid)
-    .collection('contacts').doc(uid).get();
-  return contactDoc.exists;
 }
 
 /* ============================================================
@@ -257,7 +230,7 @@ async function isInContacts(uid) {
 function renderChats(filter = '') {
   const q = filter.trim().toLowerCase();
   if (!state.chats.length) {
-    chatList.innerHTML = `<div class="empty"><div>Чатов пока нет.</div><div>Добавьте контакт по коду.</div></div>`;
+    chatList.innerHTML = `<div class="empty"><div>Чатов пока нет.</div><div>Добавьте контакт по коду во вкладке «Контакты».</div></div>`;
     return;
   }
   const list = state.chats.filter(c => (c.name || '').toLowerCase().includes(q));
@@ -282,20 +255,30 @@ function renderChats(filter = '') {
 }
 
 /* ============================================================
-   6. РЕНДЕР КОНТАКТОВ
+   6. КОНТАКТЫ
    ============================================================ */
+function subscribeContacts() {
+  if (!state.uid) return;
+  if (state.unsubContacts) state.unsubContacts();
+  state.unsubContacts = db.collection('users').doc(state.uid)
+    .collection('contacts')
+    .onSnapshot(snap => {
+      state.contacts = snap.docs.map(d => d.data());
+      renderContacts();
+    }, err => {
+      console.error('Ошибка загрузки контактов:', err);
+    });
+}
+
 function renderContacts() {
   const container = $('#contactsList');
+  if (!container) return;
   if (!state.contacts.length) {
-    container.innerHTML = `
-      <div class="empty">
-        <div>Контактов пока нет.</div>
-        <div>Введите код друга выше, чтобы добавить его.</div>
-      </div>`;
+    container.innerHTML = `<div class="empty-small">Контактов пока нет. Добавьте по коду или выберите из списка ниже.</div>`;
     return;
   }
   container.innerHTML = state.contacts.map(c => `
-    <div class="chat-row" data-uid="${c.uid}" data-code="${c.code}">
+    <div class="chat-row" data-uid="${c.uid}" data-name="${escapeHtml(c.name)}">
       <div class="avatar">${escapeHtml((c.name || '?')[0].toUpperCase())}</div>
       <div class="chat-meta">
         <strong>${escapeHtml(c.name)}</strong>
@@ -305,66 +288,123 @@ function renderContacts() {
   `).join('');
 
   container.querySelectorAll('.chat-row').forEach(r => {
-    r.addEventListener('click', async () => {
-      await startChatWith(r.dataset.uid, r.dataset.code);
+    r.addEventListener('click', () => startChatWith(r.dataset.uid, r.dataset.name));
+  });
+}
+
+function subscribeAllUsers() {
+  if (!state.uid) return;
+  if (state.unsubAllUsers) state.unsubAllUsers();
+  state.unsubAllUsers = db.collection('users').onSnapshot(snap => {
+    const container = $('#allUsersList');
+    if (!container) return;
+
+    const list = snap.docs
+      .map(d => d.data())
+      .filter(u => u.uid && u.uid !== state.uid);
+
+    if (!list.length) {
+      container.innerHTML = `<div class="empty-small">Пока никто не зарегистрирован, кроме вас.</div>`;
+      return;
+    }
+
+    const contactUids = new Set(state.contacts.map(c => c.uid));
+
+    container.innerHTML = list.map(u => {
+      const already = contactUids.has(u.uid);
+      return `
+        <div class="chat-row" data-uid="${u.uid}" data-name="${escapeHtml(u.name)}" data-added="${already}">
+          <div class="avatar">${escapeHtml((u.name || '?')[0].toUpperCase())}</div>
+          <div class="chat-meta">
+            <strong>${escapeHtml(u.name)}</strong>
+            <small>${already ? '✓ Уже в контактах — нажмите, чтобы открыть чат' : 'Нажмите, чтобы добавить'}</small>
+          </div>
+        </div>`;
+    }).join('');
+
+    container.querySelectorAll('.chat-row').forEach(r => {
+      r.addEventListener('click', () => {
+        if (r.dataset.added === 'true') {
+          startChatWith(r.dataset.uid, r.dataset.name);
+        } else {
+          addContactByUid(r.dataset.uid);
+        }
+      });
     });
   });
 }
 
-/* ============================================================
-   7. ДОБАВЛЕНИЕ КОНТАКТА ПО КОДУ
-   ============================================================ */
-searchCodeInput.addEventListener('input', async e => {
-  const code = e.target.value.trim().toUpperCase();
-  if (code.length !== 6) return;
+async function addContactByUid(targetUid) {
+  try {
+    const doc = await db.collection('users').doc(targetUid).get();
+    if (!doc.exists) { alert('Пользователь не найден'); return; }
+    const friend = doc.data();
 
-  const snap = await db.collection('users').where('code', '==', code).get();
-  if (snap.empty) {
-    alert('Пользователь с таким кодом не найден');
-    searchCodeInput.value = '';
+    await db.collection('users').doc(state.uid)
+      .collection('contacts').doc(targetUid).set({
+        uid: friend.uid,
+        name: friend.name,
+        bio: friend.bio || '',
+        avatar: friend.avatar || null,
+        code: friend.code || ''
+      });
+
+    await startChatWith(friend.uid, friend.name);
+  } catch (e) {
+    console.error(e);
+    alert('Не удалось добавить контакт: ' + e.message);
+  }
+}
+
+$('#addByCode').addEventListener('click', async () => {
+  const code = $('#searchCodeInput').value.trim().toUpperCase();
+  if (code.length !== 6) {
+    alert('Код должен состоять из 6 символов');
     return;
   }
 
-  const doc = snap.docs[0];
-  if (doc.id === state.uid) {
-    alert('Это ваш собственный код 🙂');
-    return;
+  try {
+    const snap = await db.collection('users').where('code', '==', code).get();
+    if (snap.empty) {
+      alert('Пользователь с кодом «' + code + '» не найден');
+      return;
+    }
+
+    const targetDoc = snap.docs[0];
+    if (targetDoc.id === state.uid) {
+      alert('Это ваш собственный код 🙂');
+      return;
+    }
+
+    await addContactByUid(targetDoc.id);
+    $('#searchCodeInput').value = '';
+  } catch (e) {
+    console.error(e);
+    alert('Ошибка: ' + e.message);
   }
+});
 
-  const friend = doc.data();
-
-  // Добавляем друг друга в контакты (двусторонне)
-  await db.collection('users').doc(state.uid).collection('contacts').doc(friend.uid).set({
-    name: friend.name, bio: friend.bio, avatar: friend.avatar, code: friend.code, uid: friend.uid
-  });
-  await db.collection('users').doc(friend.uid).collection('contacts').doc(state.uid).set({
-    name: state.profile.name, bio: state.profile.bio, avatar: state.profile.avatar,
-    code: state.profile.code, uid: state.uid
-  });
-
-  // Создаём чат между вами
-  await startChatWith(friend.uid, friend.code, friend.name);
-
-  searchCodeInput.value = '';
-  alert('Контакт добавлен! Чат создан.');
+$('#searchCodeInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); $('#addByCode').click(); }
 });
 
 /* ============================================================
-   8. СОЗДАНИЕ ЧАТА
+   7. СОЗДАНИЕ ЧАТА
    ============================================================ */
-async function startChatWith(friendUid, friendCode, friendName) {
-  // Ищем существующий чат
-  const existing = await db.collection('chats')
-    .where('members', '==', [state.uid, friendUid].sort())
+async function startChatWith(friendUid, friendName) {
+  const snap = await db.collection('chats')
+    .where('members', 'array-contains', state.uid)
     .get();
 
+  const existing = snap.docs.find(d => d.data().members.includes(friendUid));
+
   let chatId;
-  if (!existing.empty) {
-    chatId = existing.docs[0].id;
+  if (existing) {
+    chatId = existing.id;
   } else {
-    // Создаём новый
+    const members = [state.uid, friendUid].sort();
     const ref = await db.collection('chats').add({
-      members: [state.uid, friendUid].sort(),
+      members,
       name: friendName || 'Чат',
       createdAt: Date.now(),
       lastMessage: ''
@@ -372,30 +412,30 @@ async function startChatWith(friendUid, friendCode, friendName) {
     chatId = ref.id;
   }
 
-  // Открываем чат
   switchTab('chats');
   setTimeout(() => openChat(chatId), 300);
 }
 
 /* ============================================================
-   9. ОТКРЫТИЕ ЧАТА + MESSAGES
+   8. ОТКРЫТИЕ ЧАТА
    ============================================================ */
 function openChat(id) {
   const chat = state.chats.find(c => c.id === id);
-  if (!chat) return;
+  if (!chat) {
+    // чат может ещё не успеть прогрузиться в списке — просто откроем
+  }
+  const chatData = chat || { id, name: 'Чат' };
 
   state.active = id;
-  chatName.textContent = chat.name || 'Чат';
-  chatAvatar.textContent = (chat.name || '?')[0].toUpperCase();
+  chatName.textContent = chatData.name || 'Чат';
+  chatAvatar.textContent = (chatData.name || '?')[0].toUpperCase();
 
   welcome.classList.add('hidden');
   chatView.classList.remove('hidden');
   sidebar.classList.add('chat-open');
 
-  // Отписка от предыдущего чата
   if (state.unsubMessages) state.unsubMessages();
 
-  // Realtime-подписка на сообщения
   state.unsubMessages = db.collection('chats').doc(id)
     .collection('messages')
     .orderBy('time')
@@ -426,7 +466,7 @@ function closeChat() {
 }
 
 /* ============================================================
-   10. ОТПРАВКА СООБЩЕНИЯ
+   9. ОТПРАВКА СООБЩЕНИЯ
    ============================================================ */
 form.addEventListener('submit', async e => {
   e.preventDefault();
@@ -439,7 +479,6 @@ form.addEventListener('submit', async e => {
     time: Date.now()
   });
 
-  // Обновляем lastMessage
   await db.collection('chats').doc(state.active).update({
     lastMessage: text
   });
@@ -448,7 +487,7 @@ form.addEventListener('submit', async e => {
 });
 
 /* ============================================================
-   11. ПЕРЕКЛЮЧЕНИЕ ТАБОВ
+   10. ПЕРЕКЛЮЧЕНИЕ ТАБОВ
    ============================================================ */
 function switchTab(tab) {
   state.tab = tab;
@@ -465,7 +504,10 @@ function switchTab(tab) {
   viewProfile.classList.toggle('hidden', tab !== 'profile');
 
   if (tab === 'profile') refreshProfileUI();
-  if (tab === 'contacts') renderContacts();
+  if (tab === 'contacts') {
+    subscribeContacts();
+    subscribeAllUsers();
+  }
 }
 
 document.querySelectorAll('.nav-item').forEach(btn =>
@@ -473,7 +515,7 @@ document.querySelectorAll('.nav-item').forEach(btn =>
 );
 
 /* ============================================================
-   12. ПРОФИЛЬ
+   11. ПРОФИЛЬ
    ============================================================ */
 function refreshProfileUI() {
   const p = state.profile;
@@ -499,7 +541,7 @@ $('#copyCode').addEventListener('click', async () => {
 });
 
 /* ============================================================
-   13. МОДАЛКА НОВОГО ЧАТА (оставил для совместимости)
+   12. МОДАЛКА НОВОГО ЧАТА
    ============================================================ */
 function openModal() { modal.classList.remove('hidden'); nameInput.value = ''; setTimeout(() => nameInput.focus(), 30); }
 function closeModal() { modal.classList.add('hidden'); nameInput.value = ''; }
@@ -517,7 +559,6 @@ $('#inviteBtn').addEventListener('click', () => {
 $('#createChat').addEventListener('click', async () => {
   const name = nameInput.value.trim();
   if (!name) { nameInput.focus(); return; }
-  // Ищем пользователя по имени — упрощённо: создаём "личный" чат без собеседника
   const ref = await db.collection('chats').add({
     members: [state.uid],
     name,
@@ -533,7 +574,7 @@ nameInput.addEventListener('keydown', e => {
 });
 
 /* ============================================================
-   14. ДЕЙСТВИЯ В НАСТРОЙКАХ
+   13. НАСТРОЙКИ
    ============================================================ */
 document.querySelectorAll('[data-action]').forEach(row => {
   row.addEventListener('click', async () => {
@@ -548,11 +589,14 @@ document.querySelectorAll('[data-action]').forEach(row => {
     }
     else if (a === 'delete') {
       if (confirm('Удалить аккаунт? Все данные будут стёрты.')) {
-        // Удаляем профиль и чаты
-        await db.collection('users').doc(state.uid).delete();
-        const chatsSnap = await db.collection('chats').where('members', 'array-contains', state.uid).get();
-        for (const d of chatsSnap.docs) await d.ref.delete();
-        await auth.currentUser.delete();
+        try {
+          await db.collection('users').doc(state.uid).delete();
+          const chatsSnap = await db.collection('chats').where('members', 'array-contains', state.uid).get();
+          for (const d of chatsSnap.docs) await d.ref.delete();
+          await auth.currentUser.delete();
+        } catch (e) {
+          console.error(e);
+        }
         location.reload();
       }
     }
@@ -561,16 +605,16 @@ document.querySelectorAll('[data-action]').forEach(row => {
 });
 
 /* ============================================================
-   15. ПОИСК
+   14. ПОИСК
    ============================================================ */
 searchInput.addEventListener('input', e => renderChats(e.target.value));
 
 /* ============================================================
-   16. КНОПКА НАЗАД (мобильные)
+   15. КНОПКА НАЗАД (мобильные)
    ============================================================ */
 $('#backBtn').addEventListener('click', closeChat);
 
 /* ============================================================
-   17. СТАРТ
+   16. СТАРТ
    ============================================================ */
 switchTab('chats');
