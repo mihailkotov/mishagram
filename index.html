@@ -8,13 +8,34 @@
 </head>
 <body>
 
-  <!-- ============ ЭКРАН РЕГИСТРАЦИИ ============ -->
+  <!-- ============ WELCOME ============ -->
+  <div id="welcomeScreen" class="screen-welcome hidden">
+    <div class="welcome-card">
+      <div class="welcome-logo">💬</div>
+      <h1>Mishagram</h1>
+      <p class="welcome-sub">Веб-мессенджер</p>
+      <button id="goLogin" class="btn-blue btn-wide">Войти</button>
+      <button id="goRegister" class="btn-outline btn-wide">Зарегистрироваться</button>
+    </div>
+  </div>
+
+  <!-- ============ LOGIN ============ -->
+  <div id="loginScreen" class="register-screen hidden">
+    <div class="register-card">
+      <h2>Вход</h2>
+      <input id="loginNick" placeholder="Никнейм" maxlength="20" autocomplete="username">
+      <input id="loginPassword" type="password" placeholder="Пароль" autocomplete="current-password">
+      <div id="loginError" class="auth-error hidden"></div>
+      <button type="button" class="btn-blue btn-wide" id="loginSubmit">Войти</button>
+      <div class="auth-switch">Нет аккаунта? <a id="toRegister">Зарегистрироваться</a></div>
+      <button type="button" class="auth-back" id="backToWelcome1">← Назад</button>
+    </div>
+  </div>
+
+  <!-- ============ REGISTER ============ -->
   <div id="registerScreen" class="register-screen hidden">
     <div class="register-card">
       <h2>Регистрация</h2>
-
-      <input id="regName" placeholder="Введите имя" autocomplete="off" maxlength="30">
-      <input id="regBio"  placeholder="О себе (необязательно)" autocomplete="off" maxlength="80">
 
       <div class="reg-avatar-row">
         <div class="reg-avatar-preview" id="regPreview">😊</div>
@@ -25,23 +46,35 @@
       <div class="reg-label">Или выберите готовую:</div>
       <div class="reg-avatars" id="regAvatars"></div>
 
-      <button type="button" class="btn-blue btn-wide" id="regSubmit">Войти</button>
+      <input id="regName" placeholder="Имя (как тебя показывать)" autocomplete="off" maxlength="30">
+      <input id="regNick" placeholder="Никнейм (латиница, 3–20)" autocomplete="off" maxlength="20">
+      <input id="regPassword" type="password" placeholder="Пароль (минимум 6 символов)" autocomplete="new-password">
+      <input id="regPassword2" type="password" placeholder="Повторите пароль" autocomplete="new-password">
+      <input id="regBio" placeholder="О себе (необязательно)" autocomplete="off" maxlength="80">
+
+      <div class="auth-warning">
+        ⚠️ Восстановления пароля нет. Запомни его — иначе потеряешь аккаунт.
+      </div>
+
+      <div id="regError" class="auth-error hidden"></div>
+
+      <button type="button" class="btn-blue btn-wide" id="regSubmit">Создать аккаунт</button>
+      <div class="auth-switch">Уже есть аккаунт? <a id="toLogin">Войти</a></div>
+      <button type="button" class="auth-back" id="backToWelcome2">← Назад</button>
     </div>
   </div>
 
-  <!-- ============ ОСНОВНОЕ ПРИЛОЖЕНИЕ ============ -->
+  <!-- ============ APP ============ -->
   <div class="app hidden" id="app">
     <aside class="sidebar" id="sidebar">
-
       <div class="sidebar-head" id="sidebarHead">
         <h1 id="sidebarTitle">Чаты</h1>
         <div class="head-actions" id="headActions">
           <button class="round dark" id="inviteBtn" title="Код приглашения">🔑</button>
-          <button class="round blue" id="newChat" title="Новый чат">+</button>
+          <button class="round blue" id="newChat" title="Новая группа">+</button>
         </div>
       </div>
 
-      <!-- Вид: Чаты -->
       <div class="sidebar-view" id="viewChats">
         <div class="search">
           <span>🔍</span>
@@ -50,25 +83,20 @@
         <div id="chatList" class="chat-list"></div>
       </div>
 
-      <!-- Вид: Контакты -->
       <div class="sidebar-view hidden" id="viewContacts">
         <div class="add-code-box">
           <input id="searchCodeInput" placeholder="Код друга" autocomplete="off" maxlength="6">
           <button type="button" id="addByCode">Добавить</button>
         </div>
-
+        <button type="button" class="join-private-btn" id="openJoinBtn">
+          🔒 Присоединиться к приватному чату
+        </button>
         <div class="section-title">Мои контакты</div>
         <div id="contactsList" class="chat-list" style="padding-top:0"></div>
       </div>
 
-      <!-- Вид: Настройки -->
       <div class="sidebar-view hidden" id="viewSettings">
         <div class="settings-group">
-          <div class="row" data-action="account">
-            <div class="row-icon ic-blue">👤</div>
-            <div class="row-text"><strong>Аккаунт</strong><small>Имя, аватарка, «О себе»</small></div>
-            <div class="row-arrow">›</div>
-          </div>
           <div class="row" data-action="appearance">
             <div class="row-icon ic-orange">🎨</div>
             <div class="row-text"><strong>Оформление</strong><small>Тема, цвет акцента, размер текста</small></div>
@@ -87,11 +115,6 @@
         </div>
 
         <div class="settings-group">
-          <div class="row" data-action="reset">
-            <div class="row-icon ic-blue">↺</div>
-            <div class="row-text"><strong>Сбросить настройки</strong><small>Тема, акцент, размер текста</small></div>
-            <div class="row-arrow">›</div>
-          </div>
           <div class="row" data-action="switch">
             <div class="row-icon ic-grey">⇄</div>
             <div class="row-text"><strong>Сменить аккаунт</strong><small>Выйти из этого профиля</small></div>
@@ -105,11 +128,11 @@
         </div>
       </div>
 
-      <!-- Вид: Профиль -->
       <div class="sidebar-view hidden" id="viewProfile">
         <div class="profile-header">
           <div class="profile-avatar" id="profileAvatar">😊</div>
           <div class="profile-name" id="profileName">—</div>
+          <div class="profile-nick" id="profileNick">@—</div>
           <div class="profile-bio" id="profileBio"></div>
         </div>
 
@@ -152,7 +175,7 @@
         <header class="chat-header">
           <button id="backBtn" class="mobile-back">‹</button>
           <div class="avatar" id="chatAvatar">A</div>
-          <div>
+          <div style="flex:1;min-width:0">
             <strong id="chatName">Чат</strong>
             <div class="status">в сети</div>
           </div>
@@ -164,18 +187,123 @@
           <input id="messageInput" autocomplete="off" placeholder="Написать сообщение...">
           <button type="submit">➤</button>
         </form>
+        <div id="readOnlyNotice" class="read-only-notice hidden">
+          🔒 Только чтение — владелец запретил вам писать в этот чат
+        </div>
       </section>
     </main>
   </div>
 
-  <!-- ============ МОДАЛКА НОВОГО ЧАТА ============ -->
+  <!-- ============ GROUP CREATE ============ -->
   <div id="modal" class="modal hidden">
     <div class="modal-box">
-      <h2>Новый чат</h2>
-      <input id="chatNameInput" placeholder="Имя собеседника" autocomplete="off">
+      <h2>Новая группа</h2>
+
+      <div class="group-icon-row">
+        <div class="group-icon-preview" id="groupIconPreview">👥</div>
+        <div class="group-icon-info">
+          <div class="group-icon-label">Иконка группы</div>
+          <button type="button" class="group-icon-toggle" id="toggleIconPicker">Выбрать эмодзи</button>
+        </div>
+      </div>
+
+      <div class="group-icon-picker hidden" id="groupIconPicker"></div>
+
+      <input id="groupNameInput" placeholder="Название группы" autocomplete="off" maxlength="40">
+
+      <label class="checkbox-row">
+        <input type="checkbox" id="makePrivate">
+        <span>🔒 Приватный чат (по паролю)</span>
+      </label>
+
+      <div id="privateBlock" class="private-block hidden">
+        <input type="password" id="groupPassword" placeholder="Пароль (минимум 4 символа)" autocomplete="new-password">
+        <div class="hint-small">Другие смогут зайти только по коду приглашения и этому паролю.</div>
+      </div>
+
+      <div class="modal-hint">Выберите участников:</div>
+      <div id="groupContacts" class="group-contacts"></div>
+
       <div class="modal-actions">
         <button id="cancelModal" type="button">Отмена</button>
-        <button id="createChat" type="button">Создать</button>
+        <button id="createGroup" type="button">Создать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ GROUP INFO ============ -->
+  <div id="groupInfoModal" class="modal hidden">
+    <div class="modal-box group-info-box">
+      <h2>Информация о группе</h2>
+
+      <div class="group-info-header">
+        <div class="group-icon-preview" id="giIcon">👥</div>
+        <div class="group-info-titles">
+          <div class="group-info-name" id="giName">Название</div>
+          <div class="group-info-meta" id="giMeta">—</div>
+        </div>
+        <button class="gi-edit-btn hidden" id="giEditBtn" title="Редактировать">✏️</button>
+      </div>
+
+      <div class="group-edit-block hidden" id="giEditBlock">
+        <input id="giNameInput" placeholder="Название группы" maxlength="40" autocomplete="off">
+        <div class="modal-hint" style="margin-top:10px">Иконка группы:</div>
+        <div class="group-icon-picker" id="giIconPicker"></div>
+        <div class="modal-actions" style="margin-top:8px">
+          <button id="giCancelEdit" type="button">Отмена</button>
+          <button id="giSaveBtn" type="button">Сохранить</button>
+        </div>
+      </div>
+
+      <div class="gi-invite hidden" id="giInvite">
+        <div class="code-label">КОД ПРИГЛАШЕНИЯ</div>
+        <div class="code-value" id="giInviteCode">------</div>
+        <div class="code-hint">Отправьте код и пароль тому, кого хотите пригласить</div>
+        <div class="code-row">
+          <button class="btn-blue" id="giCopyInvite">Скопировать код</button>
+        </div>
+      </div>
+
+      <div class="section-title" style="padding:14px 4px 6px">Участники</div>
+      <div class="group-members" id="giMembers"></div>
+
+      <button type="button" class="gi-add-member hidden" id="giAddMemberBtn">➕ Добавить участника</button>
+
+      <div class="gi-permissions hidden" id="giPermissionsWrap">
+        <div class="section-title" style="padding:14px 4px 6px">Права обычных участников</div>
+        <div class="gi-permissions" id="giPermissions"></div>
+      </div>
+
+      <div class="group-actions" id="giActions"></div>
+
+      <div class="modal-actions">
+        <button id="giCloseBtn" type="button">Закрыть</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ADD MEMBERS ============ -->
+  <div id="addMemberModal" class="modal hidden">
+    <div class="modal-box">
+      <h2>Добавить участников</h2>
+      <div class="modal-hint">Выберите контакты:</div>
+      <div id="addMemberContacts" class="group-contacts"></div>
+      <div class="modal-actions">
+        <button id="amCancel" type="button">Отмена</button>
+        <button id="amAdd" type="button">Добавить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ JOIN PRIVATE ============ -->
+  <div id="joinModal" class="modal hidden">
+    <div class="modal-box">
+      <h2>Присоединиться к чату</h2>
+      <input id="joinCode" placeholder="Код приглашения" maxlength="6" autocomplete="off" class="code-input">
+      <input id="joinPassword" type="password" placeholder="Пароль" autocomplete="off" style="margin-top:12px">
+      <div class="modal-actions">
+        <button id="joinCancel" type="button">Отмена</button>
+        <button id="joinSubmit" type="button">Войти</button>
       </div>
     </div>
   </div>
