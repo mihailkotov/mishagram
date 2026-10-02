@@ -15,7 +15,6 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 const auth = firebase.auth();
 
-/* ---------- Константы ---------- */
 const NICK_DOMAIN = '@mishagram.app';
 const nickToEmail = n => n.toLowerCase() + NICK_DOMAIN;
 
@@ -40,7 +39,6 @@ const GROUP_ICONS = [
   '🏆','💡','🍔','🍺','🎯','🎨','🎸','⚡','🦄','🐼','🦊','🌻'
 ];
 
-/* ---------- Состояние ---------- */
 const state = {
   uid: null,
   profile: null,
@@ -63,7 +61,6 @@ let addMemberChatId = null;
 let regAvatar = AVATARS[0];
 let unsubPresence = null;
 
-/* ---------- DOM ---------- */
 const $ = s => document.querySelector(s);
 const app = $('#app');
 const welcomeScreen = $('#welcomeScreen');
@@ -169,7 +166,6 @@ function canDo(chat, action) {
   }
 }
 
-/* ---------- Аватары ---------- */
 function renderAvatarPicker(container, selected, onPick) {
   container.innerHTML = AVATARS.map((a, i) => `
     <div class="ava ${a === selected ? 'selected' : ''}"
@@ -212,6 +208,9 @@ function showLogin() {
   hideAuthError($('#loginError'));
   $('#loginNick').value = '';
   $('#loginPassword').value = '';
+  const btn = $('#loginSubmit');
+  btn.disabled = false;
+  btn.textContent = 'Войти';
   setTimeout(() => $('#loginNick').focus(), 40);
 }
 function showRegister() {
@@ -231,6 +230,9 @@ function showRegister() {
     regAvatar = a;
     applyAvatar($('#regPreview'), a);
   });
+  const btn = $('#regSubmit');
+  btn.disabled = false;
+  btn.textContent = 'Создать аккаунт';
   setTimeout(() => $('#regName').focus(), 40);
 }
 function hideAllAuthScreens() {
@@ -246,12 +248,10 @@ $('#backToWelcome2').addEventListener('click', showWelcome);
 $('#toRegister').addEventListener('click', showRegister);
 $('#toLogin').addEventListener('click', showLogin);
 
-/* Санитайз никнейма */
 const sanitizeNick = v => v.toLowerCase().replace(/[^a-z0-9_.]/g, '');
 $('#loginNick').addEventListener('input', e => { e.target.value = sanitizeNick(e.target.value); });
 $('#regNick').addEventListener('input', e => { e.target.value = sanitizeNick(e.target.value); });
 
-/* Фото */
 $('#regGallery').addEventListener('click', () => $('#regFile').click());
 $('#regFile').addEventListener('change', e => {
   const file = e.target.files?.[0];
@@ -284,6 +284,15 @@ $('#loginSubmit').addEventListener('click', async () => {
 
   try {
     await auth.signInWithEmailAndPassword(nickToEmail(nick), pw);
+
+    // Страховка: если через 8 секунд всё ещё на экране логина — разблокируем кнопку
+    setTimeout(() => {
+      if (!loginScreen.classList.contains('hidden')) {
+        btn.disabled = false;
+        btn.textContent = 'Войти';
+      }
+    }, 8000);
+
   } catch (e) {
     console.error(e);
     showAuthError(errEl, translateAuthError(e.code));
@@ -345,8 +354,13 @@ $('#regSubmit').addEventListener('click', async () => {
    СОСТОЯНИЕ АУТЕНТИФИКАЦИИ
    ============================================================ */
 auth.onAuthStateChanged(async user => {
-  if (user && user.isAnonymous) { await auth.signOut(); return; }
+  // Анонимный (старый) сеанс — выходим
+  if (user && user.isAnonymous) {
+    await auth.signOut();
+    return;
+  }
 
+  // Не залогинен
   if (!user) {
     state.uid = null; state.profile = null;
     if (state.unsubChats) { state.unsubChats(); state.unsubChats = null; }
@@ -356,8 +370,10 @@ auth.onAuthStateChanged(async user => {
   }
 
   state.uid = user.uid;
+
   try {
     const doc = await db.collection('users').doc(user.uid).get();
+
     if (doc.exists) {
       state.profile = doc.data();
       hideAllAuthScreens();
@@ -367,11 +383,25 @@ auth.onAuthStateChanged(async user => {
       subscribeContacts();
       startPresence();
       switchTab('chats');
-    } else {
-      await auth.signOut();
+      return;
     }
+
+    // Профиля в базе нет — сообщаем и разлогиниваемся
+    console.warn('Профиль отсутствует для uid', user.uid);
+    await auth.signOut();
+    showWelcome();
+    alert(
+      'Профиль не найден.\n\n' +
+      'Возможно, вы регистрировались давно, и данные были потеряны, ' +
+      'или регистрация не завершилась.\n\n' +
+      'Пожалуйста, зарегистрируйтесь заново с тем же ником.'
+    );
+
   } catch (e) {
     console.error('Ошибка загрузки профиля:', e);
+    await auth.signOut();
+    showWelcome();
+    alert('Ошибка загрузки профиля: ' + e.message + '\n\nПроверьте интернет и попробуйте снова.');
   }
 });
 
@@ -408,7 +438,7 @@ function updatePresenceLabel(ts) {
 }
 
 /* ============================================================
-   РЕАЛТАЙМ: ЧАТЫ
+   РЕАЛТАЙМ
    ============================================================ */
 function startRealtime() {
   if (state.unsubChats) state.unsubChats();
@@ -1170,7 +1200,7 @@ $('#joinSubmit').addEventListener('click', async () => {
 });
 
 /* ============================================================
-   ПЕРЕКЛЮЧЕНИЕ ТАБОВ
+   ТАБЫ
    ============================================================ */
 function switchTab(tab) {
   state.tab = tab;
@@ -1205,8 +1235,6 @@ function refreshProfileUI() {
   $('#profileBio').textContent = p.bio || '';
   $('#myCode').textContent = p.code || '------';
   $('#myChatsCount').textContent = state.chats.length;
-  const nav = document.querySelector('.nav-item[data-tab="profile"] span');
-  if (nav) nav.textContent = p.avatar?.emoji || '😊';
 }
 $('#copyCode').addEventListener('click', async () => {
   if (!state.profile?.code) return;
@@ -1252,9 +1280,7 @@ document.querySelectorAll('[data-action]').forEach(row => {
   });
 });
 
-/* Поиск / назад */
 searchInput.addEventListener('input', e => renderChats(e.target.value));
 $('#backBtn').addEventListener('click', closeChat);
 
-/* Стартовый экран */
 showWelcome();
