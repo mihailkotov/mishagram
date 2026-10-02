@@ -82,12 +82,83 @@ h1{font-size:30px;margin:0;font-weight:800;letter-spacing:-.5px}
 .empty{color:#5f7792;text-align:center;font-size:18px;line-height:1.75;margin-top:8px;padding:0 20px}
 .empty div+div{margin-top:2px}
 
-.bottom-nav{height:82px;margin:0 14px 10px;border-radius:42px;background:#182638;display:flex;align-items:center;justify-content:space-around;padding:5px;flex:none}
-.nav-item{height:68px;min-width:70px;background:transparent;color:#e8eef5;border-radius:35px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
-.nav-item span{font-size:27px;line-height:1}
-.nav-item small{font-size:12px}
-.nav-item.active{background:#1c6eae}
+/* ===== BOTTOM NAV (Telegram style) ===== */
+.bottom-nav{
+  height:78px;
+  margin:0 14px 10px;
+  border-radius:42px;
+  background:#182638;
+  display:flex;
+  align-items:center;
+  justify-content:space-around;
+  padding:4px;
+  flex:none;
+}
+.nav-item{
+  height:66px;
+  min-width:72px;
+  background:transparent;
+  color:#8a9bb0;
+  border-radius:34px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:3px;
+  position:relative;
+  transition:color .2s;
+  -webkit-tap-highlight-color:transparent;
+}
+.nav-item .nav-icon{
+  width:26px;
+  height:26px;
+  display:grid;
+  place-items:center;
+  transition:transform .2s cubic-bezier(.34,1.56,.64,1);
+}
+.nav-item .nav-icon svg{
+  width:26px;
+  height:26px;
+  display:block;
+}
+.nav-item small{
+  font-size:11px;
+  font-weight:500;
+  letter-spacing:.1px;
+  transition:color .2s;
+}
+.nav-item:hover{color:#c7d4e2}
+.nav-item:hover .nav-icon{transform:scale(1.1)}
+.nav-item:active .nav-icon{transform:scale(.92)}
 
+.nav-item.active{
+  background:transparent;
+  color:#419fd9;
+}
+.nav-item.active small{color:#419fd9}
+.nav-item.active .nav-icon{
+  animation:navPop .35s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes navPop{
+  0%{transform:scale(1)}
+  50%{transform:scale(1.22)}
+  100%{transform:scale(1)}
+}
+.nav-item::after{
+  content:'';
+  position:absolute;
+  bottom:6px;
+  left:50%;
+  transform:translateX(-50%) scaleX(0);
+  width:22px;
+  height:2.5px;
+  background:#419fd9;
+  border-radius:3px;
+  transition:transform .25s cubic-bezier(.34,1.56,.64,1);
+}
+.nav-item.active::after{transform:translateX(-50%) scaleX(1)}
+
+/* ==== MAIN ==== */
 .main{flex:1;position:relative;min-width:0;background:#020605}
 .pattern{position:absolute;inset:0;opacity:.55;background-color:#0a1a12;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='320' height='320' viewBox='0 0 320 320'><g fill='none' stroke='%235b8b64' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='30' cy='30' r='11'/><path d='M70 30 q13 -11 28 0 q-13 11 -28 0 M98 30 l13 -9 M98 30 l13 9'/><circle cx='140' cy='24' r='3.5' fill='%235b8b64'/><circle cx='158' cy='20' r='3.5' fill='%235b8b64'/><circle cx='150' cy='38' r='3.5' fill='%235b8b64'/><circle cx='168' cy='34' r='3.5' fill='%235b8b64'/><path d='M210 20 l18 18 M228 20 l-18 18'/><circle cx='285' cy='30' r='11'/><circle cx='40' cy='100' r='11'/><path d='M90 100 q13 -11 28 0 q-13 11 -28 0 M118 100 l13 -9 M118 100 l13 9'/><circle cx='175' cy='94' r='3.5' fill='%235b8b64'/><circle cx='192' cy='104' r='3.5' fill='%235b8b64'/><circle cx='208' cy='94' r='3.5' fill='%235b8b64'/><circle cx='225' cy='104' r='3.5' fill='%235b8b64'/><circle cx='290' cy='100' r='11'/><path d='M15 170 q10 -11 22 0 t22 0'/><path d='M95 158 q0 -12 10 -12 q10 0 10 12 q0 14 -10 14 q-10 0 -10 -14 z'/><path d='M185 148 l17 32 h-34 z'/><path d='M255 160 l18 18 M273 160 l-18 18'/><circle cx='30' cy='240' r='4' fill='%235b8b64'/><circle cx='80' cy='240' r='11'/><path d='M130 240 q13 -11 28 0 q-13 11 -28 0 M158 240 l13 -9 M158 240 l13 9'/><circle cx='225' cy='240' r='11'/><circle cx='275' cy='234' r='3.5' fill='%235b8b64'/><circle cx='292' cy='244' r='3.5' fill='%235b8b64'/><circle cx='305' cy='234' r='3.5' fill='%235b8b64'/><path d='M20 296 l17 32 h-34 z'/><path d='M100 318 q10 -11 22 0 t22 0'/><path d='M180 306 q0 -12 10 -12 q10 0 10 12 q0 14 -10 14 q-10 0 -10 -14 z'/><circle cx='270' cy='310' r='11'/><path d='M300 296 l18 18 M318 296 l-18 18'/></g></svg>");background-size:320px 320px;background-repeat:repeat}
 .welcome{position:absolute;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;color:#607893;font-size:18px;text-align:center;padding:20px}
